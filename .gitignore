@@ -1,0 +1,11 @@
+target/
+*.class
+*.log
+
+.idea/
+*.iml
+.vscode/
+
+# Cheia de service account Firebase NU se urca in git
+**/firebase-service-account*.json
+.env
