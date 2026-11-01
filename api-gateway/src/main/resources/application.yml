@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          filter:
+            json-to-grpc:
+              # firebase-admin aduce io.grpc pe classpath; filtrul gRPC al gateway-ului ar pica la pornire.
+              enabled: false
+          routes:
+            # Rutele catre microservicii se adauga aici, pe masura ce serviciile au endpoint-uri. Exemplu:
+            # - id: order-service
+            #   uri: lb://order-service
+            #   predicates:
+            #     - Path=/api/orders/**
+            []
+
+firebase:
+  # JSON-ul de service account (secret, ignorat de git). Calea implicita merge cand pornesti din folderul api-gateway.
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:../secrets/firebase-service-account.json}
+  project-id: ${FIREBASE_PROJECT_ID:tw-ecommerce-bc71c}
+
+eureka:
+  client:
+    # Oprit pana exista discovery-server; pune EUREKA_ENABLED=true cand il aveti.
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
