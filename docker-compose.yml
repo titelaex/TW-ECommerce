@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      # Daca ai deja un Postgres local pe 5432, pune POSTGRES_PORT=5433 in .env
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  payment-service:
+    build: ./payment-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/payments_db
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      PAYMENT_BLOCKED_USERS: ${PAYMENT_BLOCKED_USERS:-}
+    ports:
+      # Doar pe localhost: /internal/** nu trebuie sa fie accesibil din retea, ocolind gateway-ul.
+      - "127.0.0.1:8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8086/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  api-gateway:
+    build: ./api-gateway
+    environment:
+      PAYMENT_SERVICE_URI: http://payment-service:8086
+      FIREBASE_CREDENTIALS_PATH: /secrets/firebase-service-account.json
+      # true doar local, in .env: porneste fara cheie si accepta dev-token:<userId>:<role>
+      FIREBASE_DEV_MODE: ${FIREBASE_DEV_MODE:-false}
+    volumes:
+      - ./secrets:/secrets:ro
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      payment-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  postgres-data:

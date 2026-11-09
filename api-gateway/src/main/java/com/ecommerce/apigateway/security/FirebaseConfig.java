@@ -4,6 +4,8 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
@@ -15,7 +17,10 @@ import java.io.InputStream;
 @Configuration
 public class FirebaseConfig {
 
+    private static final String DEV_MODE = "firebase.dev-mode";
+
     @Bean
+    @ConditionalOnProperty(name = DEV_MODE, havingValue = "false", matchIfMissing = true)
     FirebaseApp firebaseApp(FirebaseProperties props) throws IOException {
         if (!FirebaseApp.getApps().isEmpty()) {
             return FirebaseApp.getInstance();
@@ -37,15 +42,31 @@ public class FirebaseConfig {
     }
 
     @Bean
-    TokenVerifier tokenVerifier(FirebaseApp app) {
-        FirebaseAuth auth = FirebaseAuth.getInstance(app);
+    @ConditionalOnProperty(name = DEV_MODE, havingValue = "false", matchIfMissing = true)
+    FirebaseAuth firebaseAuth(FirebaseApp app) {
+        return FirebaseAuth.getInstance(app);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = DEV_MODE, havingValue = "false", matchIfMissing = true)
+    TokenVerifier tokenVerifier(FirebaseAuth auth) {
         return idToken -> {
-            var token = auth.verifyIdToken(idToken);
-            Object role = token.getClaims().get("role");
-            return new AuthenticatedUser(
-                    token.getUid(),
-                    token.getEmail(),
-                    role != null ? role.toString() : AuthenticatedUser.DEFAULT_ROLE);
+            FirebaseToken token = auth.verifyIdToken(idToken);
+            return new AuthenticatedUser(token.getUid(), token.getEmail(), extractRole(token));
         };
+    }
+
+    /** In mod dev Firebase nu e initializat (nu e nevoie de cheie), deci orice token care nu e dev-token e respins. */
+    @Bean
+    @ConditionalOnProperty(name = DEV_MODE, havingValue = "true")
+    TokenVerifier devModeTokenVerifier() {
+        return idToken -> {
+            throw new IllegalArgumentException("In mod dev sunt acceptate doar token-uri dev-token:<userId>:<role>");
+        };
+    }
+
+    private static String extractRole(FirebaseToken token) {
+        Object role = token.getClaims().get("role");
+        return role != null ? role.toString() : AuthenticatedUser.DEFAULT_ROLE;
     }
 }

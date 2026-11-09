@@ -13,17 +13,27 @@ spring:
               # firebase-admin aduce io.grpc pe classpath; filtrul gRPC al gateway-ului ar pica la pornire.
               enabled: false
           routes:
-            # Rutele catre microservicii se adauga aici, pe masura ce serviciile au endpoint-uri. Exemplu:
-            # - id: order-service
-            #   uri: lb://order-service
-            #   predicates:
-            #     - Path=/api/orders/**
-            []
+            # URI-urile vin din variabile de mediu; cand exista discovery-server pot deveni lb://nume-serviciu.
+            # Rutele /internal/** nu se expun niciodata aici.
+            - id: payment-service
+              uri: ${PAYMENT_SERVICE_URI:http://localhost:8086}
+              predicates:
+                - Path=/api/payments/**
+            - id: order-service
+              uri: ${ORDER_SERVICE_URI:http://localhost:8085}
+              predicates:
+                - Path=/api/orders/**
+            - id: notification-service
+              uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8088}
+              predicates:
+                - Path=/api/notifications/**
 
 firebase:
   # JSON-ul de service account (secret, ignorat de git). Calea implicita merge cand pornesti din folderul api-gateway.
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:../secrets/firebase-service-account.json}
   project-id: ${FIREBASE_PROJECT_ID:tw-ecommerce-bc71c}
+  # true = porneste fara cheie si accepta doar dev-token:<userId>:<role>. Doar pentru testare locala.
+  dev-mode: ${FIREBASE_DEV_MODE:false}
 
 eureka:
   client:

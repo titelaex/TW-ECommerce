@@ -1,0 +1,42 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/payments_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      # Schema e definita in docker/postgres/init.sql; aici doar verificam ca entitatea se potriveste.
+      ddl-auto: validate
+    open-in-view: false
+
+eureka:
+  client:
+    # Oprit pana exista discovery-server; pune EUREKA_ENABLED=true cand il aveti.
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+payment:
+  fraud:
+    max-amount-ron: 50000
+    # Cursuri aproximative, folosite doar la pragul antifrauda. Cheile sunt monedele acceptate.
+    ron-rates:
+      RON: 1
+      EUR: 5.05
+      USD: 4.40
+      GBP: 5.80
+    # Lista de Firebase UID-uri blocate, separate prin virgula.
+    blocked-users: ${PAYMENT_BLOCKED_USERS:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
