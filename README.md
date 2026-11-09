@@ -97,3 +97,41 @@ Când utilizatorul finalizează comanda, `order-service` preia inițiativa și �
 - **Comunicare User ID:** Cum transmitem informațiile despre utilizator (id, rol) de la Gateway către microservicii?
 
 - **Rutare:** Configurăm rutele manual sau le generăm automat pe baza serviciilor din Eureka?
+
+---
+
+## 5. Rulare locală
+
+Avem nevoie doar de [Docker Desktop](https://www.docker.com/products/docker-desktop/) pornit. Totul e descris în [docker-compose.yml](docker-compose.yml), din rădăcina repo-ului.
+
+### Tot backend-ul în Docker
+
+```bash
+docker compose up -d --build
+```
+
+Construiește imaginile serviciilor din `Dockerfile`-ul fiecăruia și le pornește după ce baza de date e gata. Momentan conține `order-service` (http://localhost:8085, verificare: http://localhost:8085/actuator/health). Fiecare serviciu nou se adaugă în `docker-compose.yml` după același model. În containere baza se accesează prin numele serviciului (`postgres:5432`), nu prin `localhost`. `--build` reface imaginile după modificări în cod.
+
+Eureka e dezactivată în containere până apare `discovery-server`, deci apelurile dintre servicii (de exemplu order → inventory) nu funcționează încă.
+
+### Doar baza de date (serviciile rulate din IDE)
+
+```bash
+docker compose up -d postgres
+```
+
+Pornește un container `ecommerce-postgres` (PostgreSQL 17) pe **portul 5433**, cu userul și parola `postgres` și cu bazele `users_db`, `products_db`, `inventory_db`, `carts_db`, `orders_db`, `payments_db` deja create. Tabelele le creează fiecare serviciu la prima pornire.
+
+Valorile implicite din `application.yml` indică deja containerul, deci serviciile merg fără configurare suplimentară. Cine vrea alt PostgreSQL (de exemplu unul instalat local pe 5432) copiază `.env.example` în `.env` în folderul serviciului și completează `DB_URL` / `DB_PASSWORD`.
+
+| Comandă | Ce face |
+|---------|---------|
+| `docker compose up -d --build` | Pornește baza de date și toate serviciile |
+| `docker compose up -d postgres` | Pornește doar baza de date |
+| `docker compose logs -f order-service` | Afișează log-urile unui serviciu |
+| `docker compose down` | Oprește tot; datele rămân în volumul `pgdata` |
+| `docker compose down -v` | Oprește tot și **șterge toate datele**; la următorul `up` bazele se recreează goale |
+
+Dacă rulați un serviciu din IDE în timp ce containerul lui merge, portul e ocupat: opriți containerul cu `docker compose stop order-service`.
+
+Scriptul [docker/postgres/init-databases.sql](docker/postgres/init-databases.sql) rulează doar când volumul e gol. Dacă adăugați o bază nouă în el, rulați `docker compose down -v` și apoi `up` (sau creați baza manual).

@@ -4,8 +4,13 @@ server:
 spring:
   application:
     name: order-service
+  config:
+    # Secretele locale (DB_PASSWORD etc.) stau in order-service/.env, ignorat de git. Vezi .env.example.
+    # A doua cale acopera rularea cu working directory = radacina repo-ului (ex. IntelliJ).
+    import: optional:file:.env[.properties],optional:file:order-service/.env[.properties]
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/orders_db}
+    # Implicit: containerul din docker-compose.yml (radacina repo-ului)
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/orders_db}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
   jpa:

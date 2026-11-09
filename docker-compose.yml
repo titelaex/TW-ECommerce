@@ -1,0 +1,41 @@
+# Mediul local de dezvoltare: un singur PostgreSQL cu cate o baza logica per serviciu + microserviciile.
+# Pornire: docker compose up -d --build   |   Oprire: docker compose down   (datele raman in volumul pgdata)
+# Doar baza de date (cand rulati serviciile din IDE): docker compose up -d postgres
+services:
+  postgres:
+    image: postgres:17
+    container_name: ecommerce-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # 5433 pe host, ca sa nu intre in conflict cu un PostgreSQL instalat local pe 5432
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Ruleaza doar la prima pornire (volum gol); vezi README pentru reset
+      - ./docker/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      # In retea Docker baza se acceseaza prin numele serviciului, nu prin localhost
+      DB_URL: jdbc:postgresql://postgres:5432/orders_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      # TODO: de activat cand exista discovery-server (si EUREKA_URL: http://discovery-server:8761/eureka)
+      EUREKA_CLIENT_ENABLED: "false"
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: notification-service
+  config:
+    # Secretele locale (FIREBASE_*) stau in notification-service/.env, ignorat de git. Vezi .env.example.
+    # A doua cale acopera rularea cu working directory = radacina repo-ului (ex. IntelliJ).
+    import: optional:file:.env[.properties],optional:file:notification-service/.env[.properties]
 
 firebase:
   # Cale catre cheia de service account (Firebase Console > Project settings > Service accounts).
